@@ -1,0 +1,8 @@
+# scientific_papers uses a dataset script; requires datasets 2.x (not 3+)
+datasets>=2.14.0,<3.0.0
+rouge-score>=0.1.2
+transformers>=4.37.0
+torch>=2.0.0
+accelerate>=0.25.0
+sentencepiece>=0.1.99
+tqdm>=4.65.0
