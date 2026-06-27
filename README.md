@@ -94,23 +94,6 @@ uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 
 API docs: `http://127.0.0.1:8000/docs`
 
-### Backend with OpenAI (optional)
-
-To run all LLM tasks (brief summary, comprehensive summary, Q&A, test cards) via OpenAI instead of local models:
-
-1. Copy `.env.example` to `.env` and set:
-   - `SQUIRRELAI_LLM_BACKEND=openai`
-   - `OPENAI_API_KEY=your-key-here`
-   - Optional: `OPENAI_MODEL=gpt-4o-mini` or `gpt-5-mini` (API params are selected automatically)
-2. Install dependencies (includes `openai`, `python-dotenv`).
-3. From the project root:
-
-```powershell
-.\scripts\run-backend-openai.ps1
-```
-
-The UI is unchanged; embeddings, FAISS, and PDF ingest still run locally. Never commit `.env` or API keys to git.
-
 ### Frontend (UI)
 
 In a second terminal:
