@@ -3,6 +3,19 @@
 import re
 
 
+def normalize_markdown(text: str) -> str:
+    """Light normalization that preserves Markdown structure."""
+    if not text:
+        return ""
+
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    # Collapse runs of 4+ blank lines to two newlines.
+    text = re.sub(r"\n{4,}", "\n\n\n", text)
+    # Trim trailing whitespace per line without touching heading markers.
+    lines = [line.rstrip() for line in text.splitlines()]
+    return "\n".join(lines).strip()
+
+
 def clean_text(text: str) -> str:
     """Remove artifacts and normalize whitespace."""
     if not text:

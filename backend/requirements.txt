@@ -1,0 +1,17 @@
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+pydantic>=2.0.0
+marker-pdf
+transformers>=4.37.0
+# PyTorch: install separately with CUDA — see README (do not pin torch here;
+# pip will otherwise replace the CUDA build with CPU-only from PyPI).
+accelerate>=0.25.0
+sentencepiece>=0.1.99
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.4
+numpy>=1.24.0
+pypdf>=4.0.0
+rouge-score>=0.1.2
+openai>=1.0.0
+python-dotenv>=1.0.0

@@ -19,6 +19,17 @@ class TimedResult:
 
 
 @dataclass
+class DocumentMetrics:
+    """Metrics for a Marker PDF-to-Markdown conversion."""
+
+    page_count: int
+    word_count: int
+    character_count: int
+    chunk_count: int
+    runtime_seconds: float
+
+
+@dataclass
 class SummaryMetrics:
     """Metrics for a single summarization run."""
 
@@ -62,6 +73,22 @@ def compression_percent(source_words: int, summary_words: int) -> float:
     """Return percentage reduction: (1 - ratio) * 100."""
     ratio = compression_ratio_words(source_words, summary_words)
     return (1.0 - ratio) * 100.0
+
+
+def evaluate_document(
+    markdown: str,
+    page_count: int,
+    chunk_count: int,
+    runtime_seconds: float,
+) -> DocumentMetrics:
+    """Compute intrinsic metrics for a Marker conversion."""
+    return DocumentMetrics(
+        page_count=page_count,
+        word_count=count_words(markdown),
+        character_count=len(markdown),
+        chunk_count=chunk_count,
+        runtime_seconds=runtime_seconds,
+    )
 
 
 def evaluate_summary(

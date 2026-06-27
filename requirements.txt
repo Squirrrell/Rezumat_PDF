@@ -1,10 +1,6 @@
-streamlit>=1.28.0
-pymupdf>=1.23.0
-transformers>=4.37.0
-torch>=2.0.0
-accelerate>=0.25.0
-sentencepiece>=0.1.99
-sentence-transformers>=2.2.0
-faiss-cpu>=1.7.4
-numpy>=1.24.0
-rouge-score>=0.1.2
+# Install backend dependencies:
+#   pip install -r backend/requirements.txt
+#
+# See README.md for run instructions.
+
+-r backend/requirements.txt

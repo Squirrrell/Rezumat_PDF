@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, GenerationConfig
 
 T5_PREFIX = "summarize: "
 DEFAULT_PRETRAINED_MODEL = "google-t5/t5-small"
@@ -38,6 +38,7 @@ def _load_model(model_id_or_path: str, device: str):
     model = AutoModelForSeq2SeqLM.from_pretrained(model_id_or_path)
     model.to(device)
     model.eval()
+    model.generation_config.max_length = None
     return model
 
 
@@ -96,13 +97,16 @@ def generate_summary_with_model(
     num_beams = int(generation_config.pop("num_beams", 4))
     early_stopping = bool(generation_config.pop("early_stopping", True))
 
-    # Keep a few useful defaults, but allow overrides via generation_config.
-    gen_kwargs: dict[str, Any] = {
-        "max_new_tokens": max_new_tokens,
-        "num_beams": num_beams,
-        "early_stopping": early_stopping,
-    }
-    gen_kwargs.update(generation_config)
+    model.generation_config.max_length = None
+    gen_config = GenerationConfig(
+        max_length=None,
+        max_new_tokens=max_new_tokens,
+        num_beams=num_beams,
+        early_stopping=early_stopping,
+    )
+    for key, value in generation_config.items():
+        if hasattr(gen_config, key):
+            setattr(gen_config, key, value)
 
     inputs = tokenizer(
         T5_PREFIX + text.strip(),
@@ -113,7 +117,7 @@ def generate_summary_with_model(
     inputs = {k: v.to(device) for k, v in inputs.items()}
 
     with torch.inference_mode():
-        output_ids = model.generate(**inputs, **gen_kwargs)
+        output_ids = model.generate(**inputs, generation_config=gen_config)
 
     summary = tokenizer.decode(output_ids[0], skip_special_tokens=True).strip()
     # Approx tokens: output length (minus any special tokens already stripped by decode).

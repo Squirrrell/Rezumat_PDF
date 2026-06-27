@@ -6,7 +6,7 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from src.summarizer import get_device
+from src.device_utils import get_device
 
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 

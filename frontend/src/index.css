@@ -1,0 +1,353 @@
+@import "tailwindcss";
+
+/* ---------- Design tokens ---------- */
+
+:root,
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --bg-elevated: #ffffff;
+  --surface: rgba(255, 255, 255, 0.85);
+  --surface-hover: rgba(255, 255, 255, 0.95);
+  --surface-2: #f1f5f9;
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --border: rgba(15, 23, 42, 0.1);
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-text: #ffffff;
+  --accent-glow: rgba(37, 99, 235, 0.25);
+  --shadow-soft: 0 4px 30px rgba(15, 23, 42, 0.06);
+  --shadow-glow: 0 8px 32px rgba(37, 99, 235, 0.12);
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --header-height: 64px;
+  --danger: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+}
+
+[data-theme="dark"] {
+  --bg: #0b0f19;
+  --bg-elevated: #121827;
+  --surface: rgba(18, 24, 39, 0.75);
+  --surface-hover: rgba(24, 32, 52, 0.9);
+  --surface-2: #1a2236;
+  --glass: rgba(18, 24, 39, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent: #10b981;
+  --accent-hover: #34d399;
+  --accent-text: #0b0f19;
+  --accent-glow: rgba(16, 185, 129, 0.22);
+  --shadow-soft: 0 4px 30px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 8px 40px rgba(16, 185, 129, 0.15);
+}
+
+[data-theme="midnight"] {
+  --bg: #0b0f19;
+  --bg-elevated: #0f172a;
+  --surface: rgba(30, 41, 59, 0.7);
+  --surface-hover: rgba(30, 41, 59, 0.9);
+  --surface-2: #1e293b;
+  --glass: rgba(15, 23, 42, 0.72);
+  --glass-border: rgba(59, 130, 246, 0.15);
+  --border: rgba(148, 163, 184, 0.12);
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-text: #ffffff;
+  --accent-glow: rgba(59, 130, 246, 0.28);
+  --shadow-soft: 0 4px 30px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 8px 40px rgba(59, 130, 246, 0.18);
+}
+
+[data-theme="violet"] {
+  --bg: #0f0a1a;
+  --bg-elevated: #1a1228;
+  --surface: rgba(36, 30, 51, 0.75);
+  --surface-hover: rgba(47, 40, 66, 0.92);
+  --surface-2: #2f2842;
+  --glass: rgba(26, 18, 40, 0.72);
+  --glass-border: rgba(139, 92, 246, 0.18);
+  --border: rgba(168, 159, 196, 0.12);
+  --text: #ede9fe;
+  --text-muted: #a89fc4;
+  --accent: #8b5cf6;
+  --accent-hover: #a78bfa;
+  --accent-text: #ffffff;
+  --accent-glow: rgba(139, 92, 246, 0.28);
+  --shadow-soft: 0 4px 30px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 8px 40px rgba(139, 92, 246, 0.2);
+}
+
+/* ---------- Base ---------- */
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, var(--accent-glow), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(99, 102, 241, 0.06), transparent);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  transition: background 0.25s ease, color 0.25s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+input[type="checkbox"],
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- Utilities ---------- */
+
+.glass-panel {
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-soft);
+}
+
+.card-interactive {
+  transition: all 0.2s ease-in-out;
+}
+.card-interactive:hover {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--glass-border));
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.btn-ghost:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+.btn-icon:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-icon:active {
+  transform: scale(0.96);
+}
+
+.input-field {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+}
+.input-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  background: var(--surface-hover);
+}
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
+.select-field {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+}
+.select-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* ---------- Markdown output ---------- */
+
+.markdown {
+  font-size: 0.925rem;
+  line-height: 1.75;
+  color: var(--text);
+}
+.markdown p {
+  margin: 0 0 0.85em;
+}
+.markdown p:last-child {
+  margin-bottom: 0;
+}
+.markdown h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 1.25em 0 0.5em;
+}
+.markdown h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 1.15em 0 0.45em;
+}
+.markdown h3,
+.markdown h4 {
+  font-weight: 600;
+  margin: 1em 0 0.4em;
+}
+.markdown ul,
+.markdown ol {
+  margin: 0 0 0.85em;
+  padding-left: 1.4em;
+}
+.markdown li {
+  margin: 0.25em 0;
+}
+.markdown code {
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 0.1em 0.35em;
+  font-size: 0.85em;
+}
+.markdown pre {
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0 0 1em;
+}
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+.markdown blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 0 0 1em;
+  padding-left: 1rem;
+  color: var(--text-muted);
+}
+.markdown a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.markdown a:hover {
+  text-decoration: underline;
+}
+.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1em;
+  font-size: 0.875rem;
+}
+.markdown th,
+.markdown td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.markdown th {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.markdown hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+.markdown strong {
+  font-weight: 600;
+}

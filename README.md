@@ -10,7 +10,7 @@ Upload a text-based PDF research paper and get:
 - Semantic Q&A over the document with cited source chunks
 - **Thesis-oriented evaluation:** word counts, compression ratio, runtime metrics
 - **Section detection:** Abstract, Introduction, Methodology, Results, Conclusion
-- **Comparison mode:** full document vs. intro+conclusion vs. retrieved chunks
+- **Test cards:** auto-generated comprehension questions with keyword-based scoring
 - Export summaries to TXT for your thesis appendix
 
 Everything runs on your machine using small pretrained models.
@@ -45,17 +45,83 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-On first run, Hugging Face and sentence-transformers will download models (~1 GB total). You can set `HF_HOME` to control the cache location.
+On first run, Marker and Hugging Face will download models (several GB total). You can set `HF_HOME` to control the Hugging Face cache location.
+
+### GPU acceleration (recommended for Marker)
+
+Marker PDF conversion is **much faster on an NVIDIA GPU**. The default `pip install torch` from PyPI is often **CPU-only**, which makes `/api/health` report `"device":"cpu"`.
+
+After installing `backend/requirements.txt`, reinstall PyTorch with CUDA (example for CUDA 12.4):
+
+```powershell
+pip uninstall torch torchvision torchaudio -y
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+```
+
+Verify:
+
+```powershell
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'N/A')"
+```
+
+Copy [`.env.example`](.env.example) to `.env` or set environment variables before starting uvicorn:
+
+```powershell
+$env:TORCH_DEVICE = "cuda"
+# Only if you must run without a GPU (slow):
+# $env:ML_ALLOW_CPU = "1"
+```
+
+Restart the backend after changing PyTorch builds or Marker settings.
+
+**Marker `fast` profile (default)** loads fewer models and skips heavy table/equation processors — best for digital PDFs on 4 GB laptop GPUs. Set `MARKER_PROFILE=quality` for full Marker table/equation formatting (slower). OCR and image extraction stay off by default (`MARKER_DISABLE_OCR=1`, `MARKER_EXTRACT_IMAGES=0`). On GPUs with ≤6 GB VRAM, fast mode uses conservative batch sizes automatically; override with `MARKER_LAYOUT_BATCH_SIZE` if needed.
+
 
 ## How to run
 
+The app uses a **FastAPI backend** and a **React frontend** (Vite + Tailwind).
+
+### Backend (API)
+
 From the project root:
 
-```bash
-streamlit run app.py
+```powershell
+python -m venv backend\.venv
+backend\.venv\Scripts\Activate.ps1
+pip install -r backend\requirements.txt
+uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open the URL shown in the terminal (usually `http://localhost:8501`).
+API docs: `http://127.0.0.1:8000/docs`
+
+### Backend with OpenAI (optional)
+
+To run all LLM tasks (brief summary, comprehensive summary, Q&A, test cards) via OpenAI instead of local models:
+
+1. Copy `.env.example` to `.env` and set:
+   - `SQUIRRELAI_LLM_BACKEND=openai`
+   - `OPENAI_API_KEY=your-key-here`
+   - Optional: `OPENAI_MODEL=gpt-4o-mini` or `gpt-5-mini` (API params are selected automatically)
+2. Install dependencies (includes `openai`, `python-dotenv`).
+3. From the project root:
+
+```powershell
+.\scripts\run-backend-openai.ps1
+```
+
+The UI is unchanged; embeddings, FAISS, and PDF ingest still run locally. Never commit `.env` or API keys to git.
+
+### Frontend (UI)
+
+In a second terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` — the Vite dev server proxies `/api` to the backend.
 
 ### App tabs
 
@@ -63,8 +129,7 @@ Open the URL shown in the terminal (usually `http://localhost:8501`).
 |-----|-------------|
 | **Summarize & Q&A** | Generate summary, metrics, TXT export, ask questions |
 | **Detected sections** | Heuristic section split with previews |
-| **Comparison** | Run three summarization strategies for experiments |
-| **Model Comparison** | Compare pretrained T5-small vs a local fine-tuned T5 checkpoint side by side |
+| **Test cards** | Generate comprehension questions from the paper and verify your answers |
 | **Thesis metrics** | Aggregated metrics and runtime breakdown |
 
 ## Models used
@@ -78,38 +143,19 @@ Open the URL shown in the terminal (usually `http://localhost:8501`).
 
 Summarization uses **hierarchical** passes: each text chunk is summarized, summaries are combined, then a final summary is produced. Q&A retrieves the most relevant chunks with FAISS and summarizes them in the context of your question.
 
-## Comparing Pretrained vs Fine-tuned Models
+## Test cards
 
-This app includes a **Model Comparison** tab for a thesis-style evaluation of:
+The **Test cards** tab helps you check how well you understood a paper:
 
-- **Pretrained (baseline)**: `google-t5/t5-small`
-- **Fine-tuned**: a local T5 checkpoint folder (same architecture, trained on scientific paper summarization)
+1. Upload a PDF and open **Test cards**.
+2. Click **Generate question cards** (3–8 cards; default 5).
+3. The instruct model (Qwen or FLAN) creates questions from retrieved PDF passages.
+4. Write your answers in each card.
+5. Click **Verify answers** to see a **score per card** (0–100%) based on how many key phrases your answer includes.
 
-### Where to put the fine-tuned model
+Reference answers and key phrases stay on the server; only matched/missed phrases are shown after verification.
 
-Point the UI at any Hugging Face-style checkpoint directory that contains a `config.json`, for example:
-
-- `training/checkpoints/t5-small-scientific/final/` (produced by the optional training scripts)
-- `./models/fine_tuned_t5_small/` (your own exported folder)
-
-### How to compare
-
-1. Open the **Model Comparison** tab.
-2. Upload the same PDF you want to evaluate.
-3. Set the fine-tuned folder path.
-4. Click **Compare Models**.
-
-Both models use the **same extracted text** and the **same chunks** (limited by the sidebar “Max chunks to summarize”) so the comparison is fair.
-
-### Metrics reported
-
-- **Word counts**: original vs each summary
-- **Compression ratio**: \(\\text{summary words} / \\text{original words}\\)
-- **Generation time** per model
-- **Approx. tokens generated** (from generation output length)
-- **Optional ROUGE-1/2/L** if you paste a reference abstract/summary
-
-This is useful for a bachelor/license thesis because it provides a controlled baseline-vs-adapted comparison on the same document under low-resource constraints.
+Optional T5 fine-tuning experiments remain available offline under [`training/`](training/README_training.md) (not exposed in the UI).
 
 ## Project architecture
 
@@ -119,7 +165,7 @@ PDF upload
     → clean & chunk text
     → detect sections (heuristic)
     → ┌─ hierarchical summarizer (distilbart)
-      ├─ comparison: full / intro+conclusion / retrieved
+      ├─ test cards: retrieve chunks → instruct model → Q&A cards → keyword scoring
       └─ embed chunks → FAISS index
               → user question → top-k chunks → summarizer → answer + sources
     → evaluation metrics (words, compression, runtime)
@@ -127,20 +173,29 @@ PDF upload
 
 ```
 Rezumat_PDF/
-├── app.py                 # Streamlit UI
-├── requirements.txt
+├── backend/
+│   ├── main.py            # FastAPI app + CORS
+│   ├── requirements.txt
+│   ├── routers/           # API endpoints
+│   ├── session_store.py   # In-memory document sessions
+│   └── model_cache.py     # Cached ML models
+├── frontend/
+│   ├── src/App.jsx        # React UI (Vite + Tailwind)
+│   └── src/api/client.js  # API client (axios)
+├── requirements.txt       # Points to backend/requirements.txt
 ├── README.md
-└── src/
-    ├── pdf_utils.py       # PDF text extraction
-    ├── text_utils.py      # Cleaning and chunking
-    ├── summarizer.py      # Hierarchical summarization
-    ├── vector_store.py    # Embeddings + FAISS
-    ├── qa_system.py       # Question answering
-    ├── section_detector.py # Heuristic section detection
-    ├── evaluation.py      # Metrics and export
-    ├── comparison.py      # Three-strategy comparison
-    ├── structured_summary.py  # Section-aware structured summaries
-    └── instruct_generator.py  # Qwen / FLAN for structured Q&A
+└── src/                   # Core ML/PDF logic (unchanged)
+    ├── pdf_utils.py
+    ├── text_utils.py
+    ├── summarizer.py
+    ├── vector_store.py
+    ├── qa_system.py
+    ├── section_detector.py
+    ├── evaluation.py
+    ├── test_cards.py
+    ├── structured_summary.py
+    ├── instruct_generator.py
+    └── model_manager.py
 ```
 
 ## Sidebar settings
@@ -188,8 +243,6 @@ Older structured mode fed the **same combined text** into every section using Di
 | Conclusion | conclusion, implications, summary |
 | Key takeaways | main findings, contributions |
 
-**Comparison mode** still uses DistilBART hierarchical summaries (faster; no 9× instruct calls).
-
 ## Controlling output length
 
 The app uses **sshleifer/distilbart-cnn-12-6** with explicit generation settings (`num_beams=4`, `no_repeat_ngram_size=3`, configurable `max_length` / `min_length`). No larger model is required.
@@ -210,6 +263,14 @@ The app uses **sshleifer/distilbart-cnn-12-6** with explicit generation settings
 
 ---
 
+## Documentation
+
+- **[TECHNICAL_REFERENCE.md](TECHNICAL_REFERENCE.md)** — detailed tools, `src/` modules, API endpoints, and logic flows (with diagrams)
+- **[APP_OVERVIEW.md](APP_OVERVIEW.md)** — shorter architectural overview
+- **[z_documentatie/TOOLURI_ML.md](z_documentatie/TOOLURI_ML.md)** — explicații detaliate ML/AI în română (FAISS, MiniLM, DistilBART, Qwen, Marker etc.)
+
+---
+
 ## Thesis documentation
 
 This section frames the project for academic writing (problem, method, experiments, metrics).
@@ -224,34 +285,26 @@ Researchers and students face **information overload** when reading scientific p
 2. **Preprocessing:** Whitespace normalization, artifact removal, and overlapping character-based chunking.
 3. **Section detection:** Regex-based heading detection splits the paper into Abstract, Introduction, Methodology, Results, and Conclusion where headings match common academic patterns.
 4. **Summarization:** `distilbart-cnn-12-6` performs **hierarchical summarization** (per-chunk → combine → final pass) with configurable output length.
-5. **Retrieval:** `all-MiniLM-L6-v2` embeds chunks; FAISS `IndexFlatL2` finds the top-k passages for Q&A and for the retrieved-only comparison strategy.
+5. **Retrieval:** `all-MiniLM-L6-v2` embeds chunks; FAISS `IndexFlatL2` finds the top-k passages for Q&A and test cards.
 6. **Q&A:** Retrieved passages are summarized in the context of the user question (retrieve-and-summarize, not generative QA).
-7. **Evaluation:** Intrinsic metrics computed in `evaluation.py` without reference summaries.
+7. **Test cards:** Instruct model generates comprehension questions from retrieved context; user answers scored by key-phrase overlap.
+8. **Evaluation:** Intrinsic metrics computed in `evaluation.py` without reference summaries.
 
 ### Experiments
-
-Use the **Comparison** tab to run three strategies on the same paper:
-
-| Strategy | Description |
-|----------|-------------|
-| `full` | Hierarchical summary over the first N document chunks |
-| `intro_conclusion` | Summary of detected Introduction + Conclusion (fallback: first/last 20% of text) |
-| `retrieved_only` | Summary of top-k chunks retrieved with a fixed semantic query |
 
 **Suggested thesis protocol:**
 
 1. Collect 5–10 text-based PDFs (e.g. arXiv papers with standard section headings).
-2. For each paper, run Comparison mode and record metrics from the **Thesis metrics** tab.
-3. Optionally export summaries via **Export summary to TXT**.
-4. Compare strategies by compression ratio, runtime, and qualitative readability.
+2. For each paper, generate a summary and record metrics from the **Thesis metrics** tab.
+3. Use **Test cards** to measure comprehension (average score across cards).
+4. Optionally export summaries via **Export summary to TXT**.
 
 **Example results table (fill in your runs):**
 
-| Paper | Strategy | Source words | Summary words | Reduction % | Runtime (s) |
-|-------|----------|--------------|---------------|-------------|-------------|
-| paper1.pdf | full | | | | |
-| paper1.pdf | intro_conclusion | | | | |
-| paper1.pdf | retrieved_only | | | | |
+| Paper | Summary type | Source words | Summary words | Reduction % | Test cards avg % |
+|-------|--------------|--------------|---------------|-------------|------------------|
+| paper1.pdf | short | | | | |
+| paper1.pdf | detailed | | | | |
 
 ### Metrics
 
@@ -274,11 +327,11 @@ Use the **Comparison** tab to run three strategies on the same paper:
 
 ### Limitations
 
-- **No OCR:** Scanned/image-only PDFs are not supported.
+- **OCR disabled by default:** Scanned/image-only PDFs need `MARKER_DISABLE_OCR=0` in `.env` (slower).
 - **Heuristic sections:** Non-standard layouts, two-column PDFs, or missing headings reduce section detection accuracy.
 - **General-domain summarizer:** DistilBART is trained on news (CNN/DailyMail), not scientific prose; terminology may be simplified or lost.
 - **Q&A is not true reasoning:** Answers are abstractive summaries of retrieved chunks, not grounded generative QA.
-- **Comparison cost:** Running all three strategies triples summarization time.
+- **Test card scoring:** Keyword overlap is a simple heuristic; it does not measure semantic correctness fully.
 - **No reference-based evaluation in-app:** ROUGE requires gold summaries and is deferred to the fine-tuning phase.
 
 ### Future work: fine-tuning T5-small
@@ -297,7 +350,7 @@ Planned extensions for a follow-up thesis chapter or MSc work:
 
 ## Limitations (operational)
 
-- **Scanned PDFs** without a text layer will fail (no OCR).
+- **Scanned PDFs** without a text layer need `MARKER_DISABLE_OCR=0`; OCR is off by default for speed.
 - **Q&A** uses retrieval + summarization, not a chat LLM; answers work best for factual questions about paper content.
 - First summary on a long paper can take several minutes on CPU.
 

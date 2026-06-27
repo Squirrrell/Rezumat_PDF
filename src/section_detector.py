@@ -55,7 +55,7 @@ class PaperSections:
 
 def _match_section(line: str) -> str | None:
     """Return canonical section key if line looks like a heading."""
-    stripped = line.strip()
+    stripped = re.sub(r"^#+\s*", "", line.strip())
     if not stripped or len(stripped) > 80:
         return None
 

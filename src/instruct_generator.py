@@ -12,12 +12,13 @@ from transformers import (
     AutoTokenizer,
 )
 
-from src.summarizer import get_device
+from src.device_utils import get_device, get_torch_dtype
 
 QWEN_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
 FLAN_MODEL = "google/flan-t5-small"
 
 MAX_CONTEXT_CHARS = 6000
+QA_MAX_CONTEXT_CHARS = 8000
 MAX_NEW_TOKENS = 250
 
 FIELD_PROMPT = """You are analyzing a scientific paper.
@@ -53,10 +54,14 @@ Context:
 Key takeaways:"""
 
 QA_INSTRUCT_PROMPT = """You are analyzing a scientific paper.
-Answer ONLY using the provided context.
-Do not invent information.
-If the context does not contain enough information, say:
-"The available PDF text does not provide enough detail to answer fully."
+Answer using ONLY the provided context excerpts.
+Do not invent facts, numbers, or claims that are not supported by the context.
+
+Rules:
+- Always give a helpful answer based on what the context supports (2-5 sentences, or more if needed).
+- If the context only partially answers the question, state what is known from the excerpts and briefly note what is missing.
+- Do not use a canned refusal phrase; synthesize whatever relevant detail is present.
+- Only say the context does not address the question if the excerpts are empty or completely unrelated.
 
 Context:
 {context}
@@ -95,15 +100,21 @@ class InstructGenerator:
 
         return self._generate(prompt)
 
-    def generate_qa_answer(self, question: str, context: str) -> str:
+    def generate_qa_answer(
+        self,
+        question: str,
+        context: str,
+        *,
+        max_new_tokens: int = 400,
+    ) -> str:
         """Generate a Q&A answer from retrieved context."""
-        context = context.strip()[:MAX_CONTEXT_CHARS]
+        context = context.strip()[:QA_MAX_CONTEXT_CHARS]
         question = question.strip()
         if not context or not question:
             return ""
 
         prompt = QA_INSTRUCT_PROMPT.format(context=context, question=question)
-        return self._generate(prompt, max_new_tokens=320)
+        return self._generate(prompt, max_new_tokens=max_new_tokens)
 
     def _generate(self, prompt: str, max_new_tokens: int = MAX_NEW_TOKENS) -> str:
         if self.backend == "qwen":
@@ -192,6 +203,13 @@ def load_instruct_model_with_fallback(model_choice: str) -> tuple[InstructGenera
     Returns:
         (generator, warning_message or None)
     """
+    from src.llm_config import is_openai_backend
+    from src.openai_llm import OpenAIInstructGenerator, load_openai_instruct_generator
+
+    if is_openai_backend():
+        gen: InstructGenerator | OpenAIInstructGenerator = load_openai_instruct_generator()
+        return gen, None  # type: ignore[return-value]
+
     if "flan" in model_choice.lower():
         return _load_flan(), None
 
@@ -207,7 +225,7 @@ def load_instruct_model_with_fallback(model_choice: str) -> tuple[InstructGenera
 
 def _load_qwen() -> InstructGenerator:
     device = get_device()
-    dtype = torch.float16 if device == "cuda" else torch.float32
+    dtype = get_torch_dtype(device)
 
     tokenizer = AutoTokenizer.from_pretrained(QWEN_MODEL, trust_remote_code=True)
     if tokenizer.pad_token is None:

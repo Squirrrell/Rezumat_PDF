@@ -1,6 +1,9 @@
+
+
 # Python
 __pycache__/
 *.py[cod]
+*.pyc
 *$py.class
 *.so
 .Python
@@ -10,8 +13,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -26,12 +29,15 @@ MANIFEST
 venv/
 env/
 ENV/
+backend/.venv/
 
 # Environment and secrets
 .env
 .env.*
 !.env.example
 .streamlit/secrets.toml
+
+scripts/
 
 # Testing and type checkers
 .pytest_cache/
@@ -47,9 +53,15 @@ coverage.xml
 # Jupyter
 .ipynb_checkpoints/
 
-# ML / Hugging Face (local caches)
+# ML / Hugging Face (local caches and weights)
 .cache/
 huggingface/
+.huggingface/
+transformers_cache/
+*.safetensors
+*.bin
+*.pt
+*.pth
 
 # Training artifacts (see also training/.gitignore)
 training/checkpoints/*
@@ -66,11 +78,19 @@ training/results/
 *.lof
 *.log
 *.lot
+*.lol
+*.nav
+*.snm
+*.vrb
 *.out
 *.run.xml
 *.synctex.gz
+*.synctex(busy)
 *.toc
 *.xdv
+*.idx
+*.ilg
+*.ind
 
 # OS
 .DS_Store
@@ -87,6 +107,14 @@ desktop.ini
 # Cursor (local agent/session data)
 .cursor/
 
-# Uploaded or local test data (optional)
+# Uploaded or local test data
 uploads/
 *.tmp
+
+# Frontend (Vite / npm)
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/scripts/
+*.local
+z_documentatie/

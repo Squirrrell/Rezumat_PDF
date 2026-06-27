@@ -1,6 +1,6 @@
-# Optional T5 Fine-Tuning Experiment (Thesis)
+# T5 Fine-Tuning Experiment (Thesis)
 
-This folder contains an **optional** research experiment for fine-tuning a pretrained summarization model. It is **separate from the main Streamlit app** — you do not need to run any script here to use the PDF summarizer.
+This folder contains a research experiment for fine-tuning a pretrained summarization model. You can run it two ways: from the command line with the scripts here, or from the **Training** tab in the app (which calls the same code through the backend API). The fine-tuned model is still **not** used by the PDF summarizer itself — it is kept separate for the thesis comparison.
 
 ## Purpose
 
@@ -16,18 +16,30 @@ Goals for a bachelor/license thesis:
 
 | Component | Location | Required for app? |
 |-----------|----------|-------------------|
-| Streamlit summarizer | `app.py`, `src/` | Yes |
+| Main summarizer API | `backend/`, `frontend/`, `src/` | Yes |
 | This experiment | `training/` | **No** |
 
-The app continues to use DistilBART, MiniLM, and Qwen/FLAN for structured summaries. Fine-tuned checkpoints are saved under `training/checkpoints/` and are **not** loaded by the app in this version.
+The app continues to use DistilBART, MiniLM, and Qwen/FLAN for structured summaries. Fine-tuned checkpoints are saved under `training/checkpoints/`. The **Training** tab can start a run and show ROUGE, but the fine-tuned model is still not wired into the PDF summarization pipeline — it stays a side-by-side comparison.
+
+## Running from the app
+
+The backend exposes the experiment under `/api/training` and the frontend adds a **Training** tab:
+
+- `GET /api/training/info` — device, default config, existing checkpoints, last ROUGE results.
+- `POST /api/training/start` — launch a run in a background thread (one at a time).
+- `GET /api/training/jobs/{id}` — poll status, current epoch, and per-epoch validation loss.
+- `POST /api/training/jobs/{id}/cancel` — request a graceful stop.
+- `POST /api/training/evaluate` — ROUGE for pretrained vs the latest fine-tuned checkpoint.
+
+The shared logic lives in `training/service.py`, which both the CLI scripts and the API call. If the training extras are not installed, the tab shows a clear message instead of failing.
 
 ## Hardware notes
 
 - **Batch size 1** with **gradient accumulation 16** (effective batch 16) to limit VRAM.
-- **Max input length 512**, **max target length 128** tokens.
+- **Max input length 512**, **max target length 200** tokens.
 - **FP16** on CUDA when available; CPU training works but is slow.
 - Default subset: **1000 train** + **100 validation** examples (arxiv config).
-- Examples are collected via **streaming** (no full 3.6GB arxiv download required).
+- Examples are collected via **streaming** (no full corpus download required).
 
 ## Setup
 
@@ -44,21 +56,23 @@ Note: `scientific_papers` requires `datasets>=2.14,<3` and `trust_remote_code=Tr
 ## Dataset
 
 - **Source:** `scientific_papers` on Hugging Face
-- **Config:** `arxiv` (alternative: `pubmed`)
+- **Config:** `arxiv` (default; alternative: `pubmed`)
 - **Input:** full article text, prefixed with `summarize: ` (T5 convention)
 - **Target:** abstract (reference summary)
 - Rows with empty article or abstract are removed
 
+Both configs share the same article/abstract structure; `arxiv` covers physics, CS, and math papers, while `pubmed` covers biomedical literature. A larger PubMed run (5000 examples, 8 epochs) showed clearer ROUGE gains than a small arxiv baseline (1000 examples, 3 epochs).
+
 ## Train
 
 ```bash
-python training/train_t5_small.py --train-size 1000 --val-size 100 --epochs 3
+python training/train_t5_small.py --train-size 1000 --val-size 100 --epochs 5
 ```
 
-Quick dry-run (fewer examples, 1 epoch):
+Quick dry-run (fewer examples, 2 epochs):
 
 ```bash
-python training/train_t5_small.py --train-size 50 --val-size 10 --epochs 1 --save-steps 25 --logging-steps 10
+python training/train_t5_small.py --train-size 50 --val-size 10 --epochs 2 --logging-steps 10
 ```
 
 Checkpoints are written to:
@@ -74,14 +88,20 @@ A final model is also saved to:
 | Parameter | Default |
 |-----------|---------|
 | Model | google-t5/t5-small |
+| Dataset config | arxiv |
 | Train examples | 1000 |
 | Val examples | 100 |
 | Batch size | 1 |
 | Gradient accumulation | 16 |
 | Learning rate | 5e-5 |
-| Epochs | 3 |
+| Epochs | 5 |
 | Max input tokens | 512 |
-| Max target tokens | 128 |
+| Max target tokens | 200 |
+| Best model selection | `load_best_model_at_end` on `eval_loss` (per-epoch save/eval) |
+
+### Why 5 epochs
+
+With 1000 training examples and an effective batch size of 16, each epoch is roughly 60 steps. Three epochs were not enough for the loss to settle. Five epochs give the validation loss room to flatten out so you can see whether fine-tuning helps, while staying short enough to avoid heavy overfitting on such a small subset. Because `load_best_model_at_end` is on, the saved model is the epoch with the lowest validation loss rather than just the last one. If you raise `--train-size`, more epochs may pay off; on 1000 examples, going past 7 mostly overfits.
 
 ## Evaluate (ROUGE)
 
@@ -117,8 +137,9 @@ ROUGE measures overlap with reference abstracts; it does not guarantee factual c
 ```
 training/
 ├── dataset_utils.py      # Load subset, tokenize, collator
-├── train_t5_small.py     # Fine-tuning script
-├── evaluate_rouge.py     # ROUGE evaluation
+├── service.py            # Shared training + ROUGE logic (CLI and API)
+├── train_t5_small.py     # Fine-tuning CLI wrapper
+├── evaluate_rouge.py     # ROUGE evaluation CLI wrapper
 ├── requirements-training.txt
 ├── README_training.md
 ├── checkpoints/          # Saved models (gitignored contents)
@@ -130,13 +151,14 @@ training/
 1. Describe this as **transfer learning / fine-tuning**, not training a new architecture from random weights.
 2. Contrast with the app’s **DistilBART** (news-trained) and optional **Qwen** structured summaries.
 3. Report ROUGE on the same validation slice before and after fine-tuning.
-4. Discuss limitations: small subset, single domain (arxiv), ROUGE-only evaluation.
+4. Discuss limitations: small subset, single domain (arxiv or pubmed), ROUGE-only evaluation.
 
 ## Limitations
 
 - **Subset only** — not the full scientific_papers corpus.
 - **ROUGE ≠ quality** — high overlap can still miss facts or produce dull text.
-- **Not integrated in the app** — manual comparison for the thesis chapter.
+- **Comparison only** — the fine-tuned model is shown in the Training tab but not used for PDF summarization.
+- **In-memory jobs** — a running job is lost if the backend restarts.
 - **Download size** — first run downloads dataset and model weights from Hugging Face.
 
 ## Smoke test

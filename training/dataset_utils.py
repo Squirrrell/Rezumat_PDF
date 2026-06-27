@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datasets import Dataset, load_dataset
 from transformers import (
     AutoTokenizer,
     DataCollatorForSeq2Seq,
@@ -12,7 +11,7 @@ from transformers import (
 DEFAULT_MODEL_NAME = "google-t5/t5-small"
 DEFAULT_DATASET_CONFIG = "arxiv"
 MAX_INPUT_LENGTH = 512
-MAX_TARGET_LENGTH = 128
+MAX_TARGET_LENGTH = 200
 T5_PREFIX = "summarize: "
 
 
@@ -70,12 +69,14 @@ def _collect_subset_streaming(
     config_name: str,
     total_needed: int,
     max_scan: int | None = None,
-) -> Dataset:
+) -> "Dataset":
     """
     Stream the dataset and collect valid rows without downloading the full corpus.
 
     max_scan: stop scanning after this many raw rows (default 15 * total_needed).
     """
+    from datasets import Dataset, load_dataset
+
     if max_scan is None:
         max_scan = max(total_needed * 15, total_needed + 50)
 
